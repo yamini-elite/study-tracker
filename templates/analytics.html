@@ -1,0 +1,120 @@
+{% extends "layout.html" %}
+{% block title %}Analytics — StudyTrack{% endblock %}
+{% block page_title %}Analytics{% endblock %}
+{% block content %}
+<div class="grid-4 mb-4" id="statsCards"></div>
+
+<div class="grid-2 mb-4">
+  <div class="card">
+    <div class="card-header"><div class="card-title">📈 Weekly Tasks</div></div>
+    <canvas id="weeklyChart" height="200"></canvas>
+  </div>
+  <div class="card">
+    <div class="card-header"><div class="card-title">🍩 Subject Distribution</div></div>
+    <canvas id="subjectChart" height="200"></canvas>
+  </div>
+</div>
+
+<div class="grid-2">
+  <div class="card">
+    <div class="card-header"><div class="card-title">⏱️ Study Hours</div></div>
+    <canvas id="hoursChart" height="200"></canvas>
+  </div>
+  <div class="card">
+    <div class="card-header"><div class="card-title">🏆 Streak Overview</div></div>
+    <div id="streakOverview" style="padding:20px 0"></div>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+{{ super() }}
+<script>
+document.addEventListener('DOMContentLoaded', async () => {
+  const d = await api('/api/analytics');
+  if (!d) return;
+
+  // Stats cards
+  const s = d.stats || {};
+  const sr = d.streak || {};
+  document.getElementById('statsCards').innerHTML = [
+    {label:'Total Tasks',val:s.total_tasks||0,icon:'📋',sub:'all time'},
+    {label:'Completed',val:s.done_tasks||0,icon:'✅',sub:'tasks done'},
+    {label:'Current Streak',val:(sr.current_streak||0)+' days',icon:'🔥',sub:'keep going'},
+    {label:'Best Streak',val:(sr.longest_streak||0)+' days',icon:'🏆',sub:'personal best'}
+  ].map(c=>`<div class="stat-card"><div class="stat-label">${c.icon} ${c.label}</div><div class="stat-value">${c.val}</div><div class="stat-sub">${c.sub}</div></div>`).join('');
+
+  const accent = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim() || '#7c3aed';
+
+  // Weekly chart
+  new Chart(document.getElementById('weeklyChart'), {
+    type: 'bar',
+    data: {
+      labels: d.weekly.labels,
+      datasets: [
+        {label:'Total',data:d.weekly.total,backgroundColor:'rgba(124,58,237,0.2)',borderColor:'rgba(124,58,237,0.6)',borderWidth:2,borderRadius:6},
+        {label:'Completed',data:d.weekly.completed,backgroundColor:'rgba(16,185,129,0.2)',borderColor:'rgba(16,185,129,0.8)',borderWidth:2,borderRadius:6}
+      ]
+    },
+    options: {
+      responsive:true, plugins:{legend:{labels:{color:'#8b8fa8'}}},
+      scales:{x:{ticks:{color:'#8b8fa8'},grid:{color:'rgba(255,255,255,0.05)'}},
+              y:{ticks:{color:'#8b8fa8'},grid:{color:'rgba(255,255,255,0.05)'},beginAtZero:true}}
+    }
+  });
+
+  // Subject chart
+  if (d.subjects.length) {
+    new Chart(document.getElementById('subjectChart'), {
+      type: 'doughnut',
+      data: {
+        labels: d.subjects.map(s=>s.subject),
+        datasets:[{data:d.subjects.map(s=>s.count),
+          backgroundColor:['rgba(124,58,237,0.7)','rgba(6,182,212,0.7)','rgba(16,185,129,0.7)','rgba(245,158,11,0.7)','rgba(239,68,68,0.7)','rgba(219,39,119,0.7)'],
+          borderWidth:0}]
+      },
+      options:{responsive:true,plugins:{legend:{position:'bottom',labels:{color:'#8b8fa8',padding:12}}}}
+    });
+  } else {
+    document.getElementById('subjectChart').parentElement.innerHTML += '<div class="empty-state" style="padding:20px"><span>No subject data yet</span></div>';
+  }
+
+  // Hours chart
+  const sessLabels = d.sessions.length ? d.sessions.map(s=>s.date.slice(5)) : ['No data'];
+  const sessData = d.sessions.length ? d.sessions.map(s=>s.hours) : [0];
+  new Chart(document.getElementById('hoursChart'), {
+    type: 'line',
+    data: {
+      labels: sessLabels,
+      datasets:[{label:'Hours',data:sessData,borderColor:'rgba(6,182,212,0.8)',backgroundColor:'rgba(6,182,212,0.1)',fill:true,tension:0.4,pointBackgroundColor:'rgba(6,182,212,1)',pointRadius:5}]
+    },
+    options:{responsive:true,plugins:{legend:{labels:{color:'#8b8fa8'}}},
+      scales:{x:{ticks:{color:'#8b8fa8'},grid:{color:'rgba(255,255,255,0.05)'}},
+              y:{ticks:{color:'#8b8fa8'},grid:{color:'rgba(255,255,255,0.05)'},beginAtZero:true}}}
+  });
+
+  // Streak overview
+  const sv = d.streak;
+  document.getElementById('streakOverview').innerHTML = `
+    <div style="text-align:center">
+      <div style="font-size:60px;animation:flicker 1.5s ease-in-out infinite alternate">🔥</div>
+      <div style="font-family:'Syne',sans-serif;font-size:3rem;font-weight:800;margin:8px 0">${sv.current_streak||0}</div>
+      <div style="color:var(--text-muted);margin-bottom:24px">Day Streak</div>
+      <div class="grid-2" style="gap:12px">
+        <div style="background:var(--bg-secondary);border-radius:var(--radius);padding:16px;border:1px solid var(--border)">
+          <div style="font-size:24px">🏆</div>
+          <div style="font-family:'Syne',sans-serif;font-size:1.4rem;font-weight:700">${sv.longest_streak||0}</div>
+          <div style="font-size:12px;color:var(--text-muted)">Best Streak</div>
+        </div>
+        <div style="background:var(--bg-secondary);border-radius:var(--radius);padding:16px;border:1px solid var(--border)">
+          <div style="font-size:24px">📅</div>
+          <div style="font-family:'Syne',sans-serif;font-size:1.4rem;font-weight:700">${sv.total_days||0}</div>
+          <div style="font-size:12px;color:var(--text-muted)">Total Active Days</div>
+        </div>
+      </div>
+      <div style="margin-top:16px;padding:12px;background:var(--accent-glow);border-radius:var(--radius);font-size:13px;color:var(--accent-light)">
+        ${streakBadge(sv.current_streak||0)} — Keep it up!
+      </div>
+    </div>`;
+});
+</script>
+{% endblock %}

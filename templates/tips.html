@@ -1,0 +1,166 @@
+{% extends "layout.html" %}
+{% block title %}Study Tips — StudyTrack{% endblock %}
+{% block page_title %}Study Tips{% endblock %}
+{% block content %}
+<p style="color:var(--text-muted);margin-bottom:28px">Proven techniques to maximize your learning efficiency. Click any card to see details.</p>
+
+<div class="grid-3 mb-4" id="tipsGrid"></div>
+
+<div class="card mt-4">
+  <div class="card-header"><div class="card-title">⚡ Quick Tips</div></div>
+  <div class="grid-2" id="quickTips"></div>
+</div>
+{% endblock %}
+{% block scripts %}
+{{ super() }}
+<script>
+const tips = [
+  {
+    icon:'🍅', title:'Pomodoro Technique', color:'#ef4444',
+    desc:'Work in 25-minute focused intervals with 5-minute breaks.',
+    steps:[
+      '1. Choose a single task to focus on',
+      '2. Set a timer for 25 minutes',
+      '3. Work until the timer rings',
+      '4. Take a 5-minute break',
+      '5. After 4 pomodoros, take a 15-30 min break',
+      '💡 Use our built-in Pomodoro timer on the Dashboard!'
+    ]
+  },
+  {
+    icon:'🧠', title:'Active Recall', color:'#7c3aed',
+    desc:'Test yourself instead of passively re-reading notes.',
+    steps:[
+      '1. Study a section of material',
+      '2. Close your notes completely',
+      '3. Try to recall everything from memory',
+      '4. Check what you got right and wrong',
+      '5. Focus more time on what you forgot',
+      '💡 Use flashcards, practice questions, or teach others'
+    ]
+  },
+  {
+    icon:'📅', title:'Spaced Repetition', color:'#2563eb',
+    desc:'Review material at increasing intervals to cement long-term memory.',
+    steps:[
+      '1. Day 1: Learn new material',
+      '2. Day 2: Review the same material',
+      '3. Day 4: Review again',
+      '4. Day 8: Another review session',
+      '5. Day 16: Final review before exam',
+      '💡 Tools like Anki automate this system perfectly'
+    ]
+  },
+  {
+    icon:'🗺️', title:'Mind Mapping', color:'#059669',
+    desc:'Visual notes that connect concepts to improve understanding.',
+    steps:[
+      '1. Write the main topic in the center',
+      '2. Draw branches for major subtopics',
+      '3. Add smaller branches for details',
+      '4. Use colors, symbols, and images',
+      '5. Connect related ideas across branches',
+      '💡 Great for visual learners and complex subjects'
+    ]
+  },
+  {
+    icon:'✍️', title:'Cornell Notes', color:'#d97706',
+    desc:'Structured note-taking method with built-in review system.',
+    steps:[
+      '1. Divide page: cues column (left) + notes (right)',
+      '2. Take notes in the right column during study',
+      '3. Write keywords/questions in left column after',
+      '4. Write a 2-3 sentence summary at the bottom',
+      '5. Use the cues to self-quiz regularly',
+      '💡 Review summaries within 24 hours of taking notes'
+    ]
+  },
+  {
+    icon:'⏰', title:'Time Blocking', color:'#db2777',
+    desc:'Schedule specific time blocks for different subjects.',
+    steps:[
+      '1. List all your subjects and tasks',
+      '2. Estimate time needed for each',
+      '3. Block time in your calendar',
+      '4. Put hardest subjects during peak energy hours',
+      '5. Include buffer time between blocks',
+      '💡 Use our Timetable feature to plan your week!'
+    ]
+  },
+  {
+    icon:'🎯', title:'Feynman Technique', color:'#0891b2',
+    desc:'Master any concept by teaching it in simple terms.',
+    steps:[
+      '1. Choose a concept to learn',
+      '2. Explain it as if teaching a child',
+      '3. Identify gaps in your explanation',
+      '4. Go back to the source material',
+      '5. Simplify and use analogies',
+      '💡 If you can\'t explain it simply, you don\'t understand it yet'
+    ]
+  },
+  {
+    icon:'🏃', title:'Exercise & Study', color:'#7c3aed',
+    desc:'Physical activity boosts memory consolidation and focus.',
+    steps:[
+      '1. Exercise for 20-30 min before studying',
+      '2. Even a short walk helps brain function',
+      '3. Review notes right after exercise',
+      '4. Stay hydrated throughout the day',
+      '5. Sleep 7-8 hours for memory consolidation',
+      '💡 Science shows exercise boosts BDNF, a memory protein'
+    ]
+  },
+  {
+    icon:'📱', title:'Eliminate Distractions', color:'#ef4444',
+    desc:'Create a distraction-free environment for deep focus.',
+    steps:[
+      '1. Put your phone in another room or use app blockers',
+      '2. Use website blockers (Freedom, Cold Turkey)',
+      '3. Study in the same place every day',
+      '4. Tell others your study schedule',
+      '5. Use noise-canceling headphones or white noise',
+      '💡 Every distraction adds ~23 min to regain deep focus'
+    ]
+  }
+];
+
+const quickTips = [
+  {icon:'💤', text:'Sleep 7-8 hours — memory consolidates during sleep'},
+  {icon:'💧', text:'Drink water every hour — dehydration reduces focus by 20%'},
+  {icon:'🌅', text:'Study in the morning when cortisol (focus hormone) peaks'},
+  {icon:'📵', text:'No phone 30 min before sleep for better rest'},
+  {icon:'🥗', text:'Eat brain foods: blueberries, nuts, dark chocolate'},
+  {icon:'🎵', text:'Instrumental music can boost concentration by 65%'},
+  {icon:'🌿', text:'Adding plants to your study space reduces stress'},
+  {icon:'🖊️', text:'Handwriting notes improves retention vs. typing'}
+];
+
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('tipsGrid').innerHTML = tips.map(t=>`
+    <div class="card" style="cursor:pointer;border-left:4px solid ${t.color}" onclick="toggleTip(this)">
+      <span style="font-size:40px;display:block;margin-bottom:12px">${t.icon}</span>
+      <h3 style="margin-bottom:8px">${t.title}</h3>
+      <p style="font-size:13px;color:var(--text-secondary);margin-bottom:12px">${t.desc}</p>
+      <div class="tip-steps" style="display:none">
+        <div class="divider" style="margin:12px 0"></div>
+        ${t.steps.map(s=>`<div style="font-size:13px;color:var(--text-secondary);padding:4px 0;border-bottom:1px solid var(--border)">${s}</div>`).join('')}
+      </div>
+      <div style="font-size:12px;color:var(--text-muted);margin-top:8px">Click to ${'{'}show/hide{'}'} steps ▾</div>
+    </div>`).join('');
+
+  document.getElementById('quickTips').innerHTML = quickTips.map(q=>`
+    <div style="display:flex;align-items:center;gap:12px;padding:12px;background:var(--bg-secondary);border-radius:var(--radius);border:1px solid var(--border)">
+      <span style="font-size:24px">${q.icon}</span>
+      <span style="font-size:13px;color:var(--text-secondary)">${q.text}</span>
+    </div>`).join('');
+});
+
+function toggleTip(card) {
+  const steps = card.querySelector('.tip-steps');
+  const isOpen = steps.style.display !== 'none';
+  steps.style.display = isOpen ? 'none' : 'block';
+  card.style.borderColor = isOpen ? '' : 'var(--accent)';
+}
+</script>
+{% endblock %}

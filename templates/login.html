@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block title %}Login — StudyTrack{% endblock %}
+{% block body %}
+<div class="auth-page">
+  <div class="auth-card">
+    <div class="auth-logo">
+      <div class="auth-logo-icon">📚</div>
+      <div style="font-family:'Syne',sans-serif;font-size:1.4rem;font-weight:800">Study<span style="color:var(--accent)">Track</span></div>
+    </div>
+    <h2 class="auth-title">Welcome back</h2>
+    <p class="auth-subtitle">Sign in to continue your learning journey</p>
+    <div class="form-group">
+      <label class="form-label">Email</label>
+      <input type="email" id="email" class="form-control" placeholder="you@example.com">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Password</label>
+      <input type="password" id="password" class="form-control" placeholder="••••••••">
+    </div>
+    <button class="btn btn-primary w-full btn-lg" id="loginBtn" onclick="doLogin()">Sign In</button>
+    <div class="auth-divider">or</div>
+    <p style="text-align:center;font-size:14px;color:var(--text-muted)">
+      No account? <a href="/register">Create one free →</a>
+    </p>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+async function doLogin() {
+  const btn = document.getElementById('loginBtn');
+  btn.innerHTML = '<span class="spinner"></span>';
+  btn.disabled = true;
+  const res = await api('/login','POST',{
+    email: document.getElementById('email').value,
+    password: document.getElementById('password').value
+  });
+  if (res?.success) { window.location = '/dashboard'; }
+  else {
+    showToast(res?.message || 'Login failed','error');
+    btn.innerHTML = 'Sign In'; btn.disabled = false;
+  }
+}
+document.addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
+</script>
+{% endblock %}

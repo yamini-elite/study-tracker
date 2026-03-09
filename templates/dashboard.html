@@ -1,0 +1,242 @@
+{% extends "layout.html" %}
+{% block title %}Dashboard — StudyTrack{% endblock %}
+{% block page_title %}Dashboard{% endblock %}
+{% block content %}
+<div id="dash" style="animation:fadeInUp 0.4s ease">
+  <!-- Greeting -->
+  <div style="margin-bottom:24px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px">
+    <div>
+      <h1 id="greeting" style="font-size:1.6rem;margin-bottom:4px">Good morning! 👋</h1>
+      <p style="color:var(--text-muted);font-size:14px" id="dateDisplay"></p>
+    </div>
+    <div style="display:flex;align-items:center;gap:10px;background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-lg);padding:12px 20px">
+      <span style="font-size:28px;animation:flicker 1.5s ease-in-out infinite alternate" id="streakFire">🔥</span>
+      <div>
+        <div style="font-family:'Syne',sans-serif;font-size:1.4rem;font-weight:800" id="streakNum">0</div>
+        <div style="font-size:12px;color:var(--text-muted)">Day Streak</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Stats -->
+  <div class="grid-4 mb-4">
+    <div class="stat-card">
+      <div class="stat-label">Today's Tasks</div>
+      <div class="stat-value" id="statTotal">0</div>
+      <div class="stat-sub">pending today</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Completed</div>
+      <div class="stat-value text-success" id="statDone">0</div>
+      <div class="stat-sub">tasks done</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Progress</div>
+      <div class="stat-value" id="statPct">0%</div>
+      <div class="stat-sub">daily goal</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Best Streak</div>
+      <div class="stat-value text-accent" id="statBest">0</div>
+      <div class="stat-sub">days record</div>
+    </div>
+  </div>
+
+  <!-- Main grid -->
+  <div class="grid-2 mb-4">
+    <!-- Quote -->
+    <div class="card">
+      <div class="card-header"><div class="card-title">✨ Daily Quote</div></div>
+      <blockquote id="quoteText" style="font-size:1.1rem;font-style:italic;color:var(--text-secondary);line-height:1.7;border-left:3px solid var(--accent);padding-left:16px"></blockquote>
+      <div class="mt-3">
+        <div class="progress-wrap"><div class="progress-bar" id="progressBar" style="width:0%"></div></div>
+        <div style="display:flex;justify-content:space-between;margin-top:6px;font-size:12px;color:var(--text-muted)">
+          <span>Daily Progress</span><span id="progressLabel">0 / 0 tasks</span>
+        </div>
+      </div>
+    </div>
+    <!-- Upcoming Reminder -->
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">⏰ Upcoming Reminder</div>
+        <button class="btn btn-sm btn-primary" onclick="openModal('reminderModal')">+ Add</button>
+      </div>
+      <div id="reminderDisplay">
+        <div class="empty-state"><span class="empty-icon">🔔</span><p>No reminders today</p></div>
+      </div>
+      <div id="remindersList" style="margin-top:12px"></div>
+    </div>
+  </div>
+
+  <!-- Today's tasks + Streak achievements -->
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">📋 Today's Tasks</div>
+        <a href="/checklist" class="btn btn-sm btn-secondary">View All →</a>
+      </div>
+      <div id="todayTasks"><div class="empty-state"><span class="empty-icon">📝</span><p>No tasks yet</p></div></div>
+    </div>
+    <div class="card">
+      <div class="card-header"><div class="card-title">🏆 Achievements</div></div>
+      <div id="achievementsGrid" class="grid-2"></div>
+      <!-- Pomodoro -->
+      <div class="divider"></div>
+      <div style="text-align:center">
+        <div style="font-family:'Syne',sans-serif;font-size:3rem;font-weight:800;color:var(--accent)" id="pomDisplay">25:00</div>
+        <div style="font-size:12px;color:var(--text-muted);margin-bottom:12px">Pomodoro Timer</div>
+        <div style="display:flex;gap:8px;justify-content:center">
+          <button class="btn btn-primary" id="pomBtn" onclick="pom.toggle()">▶ Start</button>
+          <button class="btn btn-secondary" onclick="pom.reset(25)">Reset</button>
+          <button class="btn btn-secondary" onclick="pom.reset(5)" title="Short break">☕</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Reminder Modal -->
+<div class="modal-overlay" id="reminderModal">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title">⏰ Add Reminder</span>
+      <button class="btn btn-icon btn-secondary" onclick="closeModal('reminderModal')">✕</button>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Message</label>
+      <input type="text" id="remMsg" class="form-control" placeholder="Study DBMS chapter 4">
+    </div>
+    <div class="grid-2">
+      <div class="form-group">
+        <label class="form-label">Date</label>
+        <input type="date" id="remDate" class="form-control">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Time</label>
+        <input type="time" id="remTime" class="form-control">
+      </div>
+    </div>
+    <button class="btn btn-primary w-full" onclick="addReminder()">Set Reminder</button>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+{{ super() }}
+<script>
+let pom;
+let reminders = [];
+
+document.addEventListener('DOMContentLoaded', async () => {
+  // Set date
+  const now = new Date();
+  const hours = now.getHours();
+  document.getElementById('greeting').textContent =
+    (hours < 12 ? 'Good morning' : hours < 17 ? 'Good afternoon' : 'Good evening') +
+    ', ' + (sessionStorage.getItem('uname') || 'Scholar') + '! ' +
+    (hours < 12 ? '☀️' : hours < 17 ? '🌤️' : '🌙');
+  document.getElementById('dateDisplay').textContent = now.toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric'});
+  document.getElementById('remDate').value = todayStr();
+  document.getElementById('remTime').value = now.toTimeString().slice(0,5);
+
+  // Init pomodoro
+  pom = new PomodoroTimer(document.getElementById('pomDisplay'), document.getElementById('pomBtn'));
+
+  // Load data
+  const d = await api('/api/dashboard');
+  if (!d) return;
+  sessionStorage.setItem('uname', d.user.name);
+  document.getElementById('greeting').textContent =
+    (hours < 12 ? 'Good morning' : hours < 17 ? 'Good afternoon' : 'Good evening') +
+    ', ' + d.user.name.split(' ')[0] + '! ' + (hours < 12 ? '☀️' : hours < 17 ? '🌤️' : '🌙');
+
+  // Stats
+  document.getElementById('streakNum').textContent = d.streak.current_streak || 0;
+  document.getElementById('statBest').textContent = d.streak.longest_streak || 0;
+  document.getElementById('statTotal').textContent = d.progress.total;
+  document.getElementById('statDone').textContent = d.progress.done;
+  const pct = d.progress.total ? Math.round(d.progress.done/d.progress.total*100) : 0;
+  document.getElementById('statPct').textContent = pct + '%';
+  document.getElementById('progressBar').style.width = pct + '%';
+  document.getElementById('progressLabel').textContent = `${d.progress.done} / ${d.progress.total} tasks`;
+
+  // Quote
+  document.getElementById('quoteText').textContent = '"' + d.quote + '"';
+
+  // Tasks
+  const tasksEl = document.getElementById('todayTasks');
+  if (d.tasks.length === 0) {
+    tasksEl.innerHTML = '<div class="empty-state"><span class="empty-icon">📝</span><p>No tasks yet — <a href="/checklist">add some!</a></p></div>';
+  } else {
+    tasksEl.innerHTML = d.tasks.slice(0,5).map(t => `
+      <div class="task-item ${t.status==='completed'?'completed':''}">
+        <div class="task-checkbox ${t.status==='completed'?'checked':''}"></div>
+        <div class="task-info">
+          <div class="task-name">${t.task_name}</div>
+          <div class="task-meta">${t.subject||'General'} · ${t.priority}</div>
+        </div>
+      </div>`).join('');
+  }
+
+  // Achievements
+  const s = d.streak.current_streak || 0;
+  const badges = [
+    {icon:'🌱',label:'Started',earned:true},
+    {icon:'🥉',label:'3 Days',earned:s>=3},
+    {icon:'🥈',label:'7 Days',earned:s>=7},
+    {icon:'🥇',label:'14 Days',earned:s>=14},
+    {icon:'💎',label:'30 Days',earned:s>=30},
+    {icon:'🏆',label:'Legend',earned:s>=60}
+  ];
+  document.getElementById('achievementsGrid').innerHTML = badges.map(b=>`
+    <div style="text-align:center;padding:12px;background:var(--bg-secondary);border-radius:10px;border:1px solid ${b.earned?'var(--accent)':'var(--border)'};opacity:${b.earned?1:0.4}">
+      <div style="font-size:24px">${b.icon}</div>
+      <div style="font-size:11px;color:var(--text-muted);margin-top:4px">${b.label}</div>
+    </div>`).join('');
+
+  // Reminder
+  if (d.upcoming_reminder) {
+    document.getElementById('reminderDisplay').innerHTML = `
+      <div style="display:flex;align-items:center;gap:12px;padding:16px;background:var(--bg-hover);border-radius:var(--radius);border:1px solid var(--accent)">
+        <div style="font-size:32px">⏰</div>
+        <div>
+          <div style="font-weight:600">${d.upcoming_reminder.message}</div>
+          <div style="font-size:12px;color:var(--accent-light)">${d.upcoming_reminder.reminder_time}</div>
+        </div>
+      </div>`;
+  }
+
+  // Load all reminders
+  reminders = (await api('/api/reminders')) || [];
+  renderReminders();
+
+  // Start reminder check
+  setInterval(() => checkReminders(reminders), 30000);
+});
+
+function renderReminders() {
+  const el = document.getElementById('remindersList');
+  if (!reminders.length) { el.innerHTML = ''; return; }
+  el.innerHTML = '<div style="font-size:12px;color:var(--text-muted);margin-bottom:8px">All Reminders</div>' +
+    reminders.slice(0,4).map(r=>`
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 10px;background:var(--bg-secondary);border-radius:8px;margin-bottom:4px;font-size:13px">
+        <span>${r.message}</span>
+        <span style="color:var(--text-muted)">${r.reminder_date} ${r.reminder_time}</span>
+      </div>`).join('');
+}
+
+async function addReminder() {
+  const res = await api('/api/reminders','POST',{
+    message: document.getElementById('remMsg').value,
+    date: document.getElementById('remDate').value,
+    time: document.getElementById('remTime').value
+  });
+  if (res?.id) {
+    reminders.push(res);
+    renderReminders();
+    showToast('Reminder set!','success');
+    closeModal('reminderModal');
+    document.getElementById('remMsg').value='';
+  }
+}
+</script>
+{% endblock %}

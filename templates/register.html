@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% block title %}Register — StudyTrack{% endblock %}
+{% block body %}
+<div class="auth-page">
+  <div class="auth-card" style="max-width:460px">
+    <div class="auth-logo">
+      <div class="auth-logo-icon">📚</div>
+      <div style="font-family:'Syne',sans-serif;font-size:1.4rem;font-weight:800">Study<span style="color:var(--accent)">Track</span></div>
+    </div>
+    <h2 class="auth-title">Create account</h2>
+    <p class="auth-subtitle">Start tracking your study progress today</p>
+    <div class="grid-2">
+      <div class="form-group">
+        <label class="form-label">Full Name</label>
+        <input type="text" id="name" class="form-control" placeholder="Alex Johnson">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Daily Goal (hrs)</label>
+        <select id="study_goal" class="form-control">
+          <option value="2">2 hours</option><option value="4" selected>4 hours</option>
+          <option value="6">6 hours</option><option value="8">8 hours</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Email</label>
+      <input type="email" id="email" class="form-control" placeholder="you@example.com">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Password</label>
+      <input type="password" id="password" class="form-control" placeholder="Min 8 characters">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Subjects (comma separated)</label>
+      <input type="text" id="subjects" class="form-control" placeholder="Math, Physics, Chemistry">
+    </div>
+    <button class="btn btn-primary w-full btn-lg" id="regBtn" onclick="doRegister()">Create Account</button>
+    <div class="auth-divider">or</div>
+    <p style="text-align:center;font-size:14px;color:var(--text-muted)">
+      Already have an account? <a href="/login">Sign in →</a>
+    </p>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+async function doRegister() {
+  const btn = document.getElementById('regBtn');
+  btn.innerHTML = '<span class="spinner"></span>'; btn.disabled = true;
+  const res = await api('/register','POST',{
+    name: document.getElementById('name').value,
+    email: document.getElementById('email').value,
+    password: document.getElementById('password').value,
+    subjects: document.getElementById('subjects').value,
+    study_goal: parseInt(document.getElementById('study_goal').value)
+  });
+  if (res?.success) { showToast('Account created!','success'); setTimeout(()=>window.location='/login',1000); }
+  else { showToast(res?.message||'Registration failed','error'); btn.innerHTML='Create Account'; btn.disabled=false; }
+}
+</script>
+{% endblock %}

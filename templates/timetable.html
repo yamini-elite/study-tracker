@@ -1,0 +1,173 @@
+{% extends "layout.html" %}
+{% block title %}Timetable — StudyTrack{% endblock %}
+{% block page_title %}Timetable{% endblock %}
+{% block content %}
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;flex-wrap:wrap;gap:12px">
+  <div style="display:flex;gap:8px">
+    <button class="btn btn-secondary btn-sm" onclick="setView('week')">📅 Week</button>
+    <button class="btn btn-secondary btn-sm" onclick="setView('list')">📋 List</button>
+  </div>
+  <button class="btn btn-primary" onclick="openModal('ttModal')">+ Add Class</button>
+</div>
+
+<div id="weekView" class="card" style="padding:0;overflow:auto"></div>
+<div id="listView" style="display:none"></div>
+
+<!-- Add/Edit Modal -->
+<div class="modal-overlay" id="ttModal">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title" id="ttModalTitle">📅 Add Class</span>
+      <button class="btn btn-icon btn-secondary" onclick="closeModal('ttModal')">✕</button>
+    </div>
+    <input type="hidden" id="editTtId">
+    <div class="form-group">
+      <label class="form-label">Subject *</label>
+      <input type="text" id="ttSubject" class="form-control" placeholder="e.g. Mathematics">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Day</label>
+      <select id="ttDay" class="form-control">
+        <option>Monday</option><option>Tuesday</option><option>Wednesday</option>
+        <option>Thursday</option><option>Friday</option><option>Saturday</option><option>Sunday</option>
+      </select>
+    </div>
+    <div class="grid-2">
+      <div class="form-group">
+        <label class="form-label">Start Time</label>
+        <input type="time" id="ttStart" class="form-control">
+      </div>
+      <div class="form-group">
+        <label class="form-label">End Time</label>
+        <input type="time" id="ttEnd" class="form-control">
+      </div>
+    </div>
+    <div style="display:flex;gap:10px">
+      <button class="btn btn-primary w-full" onclick="saveTT()">Save</button>
+      <button class="btn btn-secondary" onclick="closeModal('ttModal')">Cancel</button>
+    </div>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+{{ super() }}
+<script>
+const DAYS = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
+const HOURS = ['06:00','07:00','08:00','09:00','10:00','11:00','12:00','13:00','14:00','15:00','16:00','17:00','18:00','19:00','20:00','21:00','22:00'];
+let entries = [];
+let currentView = 'week';
+
+document.addEventListener('DOMContentLoaded', loadTT);
+
+async function loadTT() {
+  entries = await api('/api/timetable') || [];
+  render();
+}
+
+function setView(v) {
+  currentView = v;
+  document.getElementById('weekView').style.display = v==='week'?'block':'none';
+  document.getElementById('listView').style.display = v==='list'?'block':'none';
+  render();
+}
+
+function render() {
+  if (currentView === 'week') renderWeek();
+  else renderList();
+}
+
+function renderWeek() {
+  const el = document.getElementById('weekView');
+  const byDay = {};
+  DAYS.forEach(d=>byDay[d]=[]);
+  entries.forEach(e=>{ if(byDay[e.day]) byDay[e.day].push(e); });
+
+  let html = `<table style="width:100%;border-collapse:collapse;min-width:700px">
+    <thead><tr>
+      <th style="background:var(--bg-secondary);padding:12px 8px;font-family:'Syne',sans-serif;font-size:11px;font-weight:700;color:var(--text-muted);width:60px;text-align:right;border-bottom:1px solid var(--border)">TIME</th>`;
+  DAYS.forEach(d=>{
+    const today = new Date().toLocaleDateString('en-US',{weekday:'long'});
+    const isToday = d === today;
+    html+=`<th style="background:var(--bg-secondary);padding:12px 8px;font-family:'Syne',sans-serif;font-size:12px;font-weight:700;color:${isToday?'var(--accent-light)':'var(--text-secondary)'};border-bottom:1px solid var(--border);border-left:1px solid var(--border)">${d.slice(0,3)}${isToday?' 🔵':''}</th>`;
+  });
+  html += '</tr></thead><tbody>';
+
+  HOURS.forEach(h=>{
+    html += `<tr><td style="background:var(--bg-secondary);padding:6px 10px;font-size:11px;color:var(--text-muted);text-align:right;border-bottom:1px solid var(--border);vertical-align:top">${h}</td>`;
+    DAYS.forEach(d=>{
+      const evs = byDay[d].filter(e=>e.start_time.slice(0,5)===h);
+      html += `<td style="background:var(--bg-card);padding:4px;border-bottom:1px solid var(--border);border-left:1px solid var(--border);vertical-align:top;min-height:50px">`;
+      evs.forEach(e=>{
+        html+=`<div style="background:${e.color};border-radius:8px;padding:5px 8px;font-size:11px;font-weight:600;color:white;margin-bottom:2px;cursor:pointer" onclick='editTT(${JSON.stringify(e)})' title="${e.subject} ${e.start_time}–${e.end_time}">
+          <div>${e.subject}</div><div style="opacity:0.8">${e.start_time}–${e.end_time}</div>
+        </div>`;
+      });
+      html+='</td>';
+    });
+    html+='</tr>';
+  });
+  html+='</tbody></table>';
+  el.innerHTML = html;
+}
+
+function renderList() {
+  const el = document.getElementById('listView');
+  if (!entries.length) { el.innerHTML='<div class="empty-state"><span class="empty-icon">📅</span><p>No classes yet</p></div>'; return; }
+  const byDay = {};
+  DAYS.forEach(d=>byDay[d]=[]);
+  entries.forEach(e=>{ if(byDay[e.day]) byDay[e.day].push(e); });
+  el.innerHTML = DAYS.map(d=>{
+    if(!byDay[d].length) return '';
+    return `<div class="card mb-3">
+      <div class="card-header"><div class="card-title">${d}</div></div>
+      ${byDay[d].sort((a,b)=>a.start_time.localeCompare(b.start_time)).map(e=>`
+        <div style="display:flex;align-items:center;gap:12px;padding:12px;background:var(--bg-secondary);border-radius:var(--radius);margin-bottom:6px">
+          <div style="width:10px;height:10px;border-radius:50%;background:${e.color};flex-shrink:0"></div>
+          <div style="flex:1"><div style="font-weight:500">${e.subject}</div><div style="font-size:12px;color:var(--text-muted)">${e.start_time} – ${e.end_time}</div></div>
+          <button class="btn btn-sm btn-secondary" onclick='editTT(${JSON.stringify(e)})'>✏️</button>
+          <button class="btn btn-sm btn-danger" onclick="deleteTT(${e.id})">🗑️</button>
+        </div>`).join('')}
+    </div>`;
+  }).join('');
+}
+
+function editTT(e) {
+  document.getElementById('ttModalTitle').textContent='✏️ Edit Class';
+  document.getElementById('editTtId').value=e.id;
+  document.getElementById('ttSubject').value=e.subject;
+  document.getElementById('ttDay').value=e.day;
+  document.getElementById('ttStart').value=e.start_time;
+  document.getElementById('ttEnd').value=e.end_time;
+  openModal('ttModal');
+}
+
+async function saveTT() {
+  const id = document.getElementById('editTtId').value;
+  const data = {
+    subject:document.getElementById('ttSubject').value,
+    day:document.getElementById('ttDay').value,
+    start_time:document.getElementById('ttStart').value,
+    end_time:document.getElementById('ttEnd').value
+  };
+  if (!data.subject||!data.start_time||!data.end_time) { showToast('Fill all fields','error'); return; }
+  if (id) {
+    const res = await api(`/api/timetable/${id}`,'PUT',data);
+    if(res){entries=entries.map(e=>e.id==id?res:e);showToast('Updated!','success');}
+  } else {
+    const res = await api('/api/timetable','POST',data);
+    if(res){entries.push(res);showToast('Class added!','success');}
+  }
+  document.getElementById('editTtId').value='';
+  document.getElementById('ttSubject').value='';
+  document.getElementById('ttModalTitle').textContent='📅 Add Class';
+  closeModal('ttModal');
+  render();
+}
+
+async function deleteTT(id) {
+  if (!confirm('Delete this class?')) return;
+  const res = await api(`/api/timetable/${id}`,'DELETE');
+  if(res?.success){entries=entries.filter(e=>e.id!==id);render();showToast('Deleted','warning');}
+}
+</script>
+{% endblock %}

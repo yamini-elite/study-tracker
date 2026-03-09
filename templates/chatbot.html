@@ -1,0 +1,82 @@
+{% extends "layout.html" %}
+{% block title %}AI Assistant — StudyTrack{% endblock %}
+{% block page_title %}AI Study Assistant{% endblock %}
+{% block content %}
+<div style="max-width:700px;margin:0 auto">
+  <div class="card mb-3" style="padding:16px;background:linear-gradient(135deg,var(--accent-glow),transparent)">
+    <div style="display:flex;align-items:center;gap:12px">
+      <div style="font-size:40px;animation:bounce 2s infinite">🤖</div>
+      <div>
+        <div style="font-family:'Syne',sans-serif;font-weight:700">StudyBot Assistant</div>
+        <div style="font-size:13px;color:var(--text-muted)">Ask me anything about study strategies, productivity tips, or academic advice!</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="chat-window" id="chatWindow">
+    <div class="chat-bubble bot">
+      👋 Hi! I'm <strong>StudyBot</strong>, your personal academic assistant!<br><br>
+      I can help with:<br>
+      🍅 <strong>Pomodoro</strong> technique<br>
+      🎯 <strong>Focus</strong> strategies<br>
+      🧠 <strong>Memory</strong> improvement<br>
+      📅 <strong>Study schedules</strong><br>
+      😌 <strong>Stress</strong> management<br>
+      📝 <strong>Exam</strong> tips<br><br>
+      What would you like to know?
+    </div>
+  </div>
+
+  <!-- Quick suggestions -->
+  <div style="display:flex;gap:8px;flex-wrap:wrap;margin:12px 0" id="suggestions">
+    <button class="btn btn-sm btn-secondary" onclick="quickAsk('Tell me about the pomodoro technique')">🍅 Pomodoro</button>
+    <button class="btn btn-sm btn-secondary" onclick="quickAsk('How can I improve my focus?')">🎯 Focus tips</button>
+    <button class="btn btn-sm btn-secondary" onclick="quickAsk('How to improve memory retention?')">🧠 Memory</button>
+    <button class="btn btn-sm btn-secondary" onclick="quickAsk('I am feeling tired and stressed')">😰 Stress help</button>
+    <button class="btn btn-sm btn-secondary" onclick="quickAsk('Give me exam preparation tips')">📝 Exam tips</button>
+    <button class="btn btn-sm btn-secondary" onclick="quickAsk('Help me with time management')">⏰ Time mgmt</button>
+  </div>
+
+  <div style="display:flex;gap:10px">
+    <input type="text" id="chatInput" class="form-control" placeholder="Ask me anything..." onkeydown="if(event.key==='Enter')sendMsg()">
+    <button class="btn btn-primary" onclick="sendMsg()" style="flex-shrink:0">Send 🚀</button>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+{{ super() }}
+<script>
+let isTyping = false;
+
+async function sendMsg() {
+  const input = document.getElementById('chatInput');
+  const msg = input.value.trim();
+  if (!msg || isTyping) return;
+  input.value = '';
+  addBubble(msg, 'user');
+  isTyping = true;
+  // Typing indicator
+  const typingEl = addBubble('...', 'bot', true);
+  const res = await api('/api/chatbot','POST',{message:msg});
+  typingEl.remove();
+  isTyping = false;
+  if (res?.response) addBubble(res.response, 'bot');
+}
+
+function quickAsk(q) {
+  document.getElementById('chatInput').value = q;
+  sendMsg();
+}
+
+function addBubble(text, type, isTemp=false) {
+  const win = document.getElementById('chatWindow');
+  const div = document.createElement('div');
+  div.className = `chat-bubble ${type}`;
+  div.innerHTML = type === 'bot' ? text.replace(/\n/g,'<br>') : text;
+  if (isTemp) div.style.opacity = '0.6';
+  win.appendChild(div);
+  win.scrollTop = win.scrollHeight;
+  return div;
+}
+</script>
+{% endblock %}

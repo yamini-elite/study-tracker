@@ -1,0 +1,128 @@
+{% extends "layout.html" %}
+{% block title %}Motivation — StudyTrack{% endblock %}
+{% block page_title %}Motivation{% endblock %}
+{% block content %}
+<!-- Hero Quote -->
+<div class="quote-hero mb-4">
+  <div class="quote-text" id="heroQuote">Loading today's quote...</div>
+  <div style="color:var(--text-muted);font-size:14px">Daily Inspiration</div>
+  <button class="btn btn-primary mt-3" onclick="nextQuote()">✨ New Quote</button>
+</div>
+
+<div class="grid-2 mb-4">
+  <!-- Daily Challenge -->
+  <div class="challenge-card">
+    <div style="font-family:'Syne',sans-serif;font-size:1.1rem;font-weight:700;margin-bottom:8px;position:relative;z-index:1">🎯 Today's Challenge</div>
+    <div id="dailyChallenge" style="position:relative;z-index:1;font-size:15px;line-height:1.6"></div>
+  </div>
+  <!-- Mood Tracker -->
+  <div class="card">
+    <div class="card-title mb-3">😊 How are you feeling today?</div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap">
+      <button class="mood-btn btn btn-secondary" onclick="setMood(this,'😤')">😤 Focused</button>
+      <button class="mood-btn btn btn-secondary" onclick="setMood(this,'😊')">😊 Happy</button>
+      <button class="mood-btn btn btn-secondary" onclick="setMood(this,'😴')">😴 Tired</button>
+      <button class="mood-btn btn btn-secondary" onclick="setMood(this,'😰')">😰 Stressed</button>
+      <button class="mood-btn btn btn-secondary" onclick="setMood(this,'🔥')">🔥 Motivated</button>
+    </div>
+    <div id="moodMessage" style="margin-top:16px;padding:12px;background:var(--bg-hover);border-radius:var(--radius);font-size:13px;display:none"></div>
+  </div>
+</div>
+
+<!-- Quote Collection -->
+<div class="card">
+  <div class="card-header"><div class="card-title">💬 Inspirational Quotes</div></div>
+  <div id="quoteGrid" class="grid-auto"></div>
+</div>
+
+<!-- Study Challenges -->
+<div class="card mt-4">
+  <div class="card-header"><div class="card-title">⚡ Study Challenges</div></div>
+  <div class="grid-3" id="challengesGrid"></div>
+</div>
+{% endblock %}
+{% block scripts %}
+{{ super() }}
+<script>
+const quotes = [
+  {text:"Success is the sum of small efforts, repeated day in and day out.",author:"Robert Collier"},
+  {text:"The beautiful thing about learning is that nobody can take it away from you.",author:"B.B. King"},
+  {text:"Education is the passport to the future, for tomorrow belongs to those who prepare for it today.",author:"Malcolm X"},
+  {text:"The more that you read, the more things you will know.",author:"Dr. Seuss"},
+  {text:"Intelligence plus character — that is the goal of true education.",author:"Martin Luther King Jr."},
+  {text:"Push yourself, because no one else is going to do it for you.",author:"Unknown"},
+  {text:"It always seems impossible until it's done.",author:"Nelson Mandela"},
+  {text:"Don't watch the clock; do what it does. Keep going.",author:"Sam Levenson"},
+  {text:"The secret of getting ahead is getting started.",author:"Mark Twain"},
+  {text:"You don't have to be great to start, but you have to start to be great.",author:"Zig Ziglar"},
+  {text:"Study hard, for the well is deep, and our brains are shallow.",author:"Richard Baxter"},
+  {text:"Believe you can and you're halfway there.",author:"Theodore Roosevelt"}
+];
+
+const challenges = [
+  {icon:'📖',title:'Read 30 Pages',desc:'Read 30 pages of any textbook without distraction'},
+  {icon:'✍️',title:'Write 500 Words',desc:'Write detailed notes on a topic you studied this week'},
+  {icon:'🧮',title:'Solve 20 Problems',desc:'Complete 20 practice problems from your hardest subject'},
+  {icon:'🗣️',title:'Teach Someone',desc:'Explain one concept you learned to a friend or family member'},
+  {icon:'🎯',title:'No Phone Hour',desc:'Study for 60 minutes with your phone in another room'},
+  {icon:'🧠',title:'Mind Map',desc:'Create a mind map for an entire chapter you just studied'}
+];
+
+let qIdx = new Date().getDay();
+
+document.addEventListener('DOMContentLoaded', () => {
+  renderHeroQuote();
+  renderQuoteGrid();
+  renderChallenges();
+  renderDailyChallenge();
+});
+
+function renderHeroQuote() {
+  const q = quotes[qIdx % quotes.length];
+  document.getElementById('heroQuote').innerHTML = `"${q.text}" <br><span style="font-size:0.8em;color:var(--text-muted);font-style:normal">— ${q.author}</span>`;
+}
+
+function nextQuote() {
+  qIdx = (qIdx + 1) % quotes.length;
+  renderHeroQuote();
+}
+
+function renderQuoteGrid() {
+  document.getElementById('quoteGrid').innerHTML = quotes.map(q=>`
+    <div style="background:var(--bg-secondary);border:1px solid var(--border);border-radius:var(--radius);padding:16px;transition:border-color 0.2s">
+      <p style="font-style:italic;color:var(--text-secondary);font-size:13px;line-height:1.6;margin-bottom:8px">"${q.text}"</p>
+      <p style="font-size:11px;color:var(--accent-light);font-weight:600">— ${q.author}</p>
+    </div>`).join('');
+}
+
+function renderChallenges() {
+  document.getElementById('challengesGrid').innerHTML = challenges.map(c=>`
+    <div style="background:var(--bg-secondary);border:1px solid var(--border);border-radius:var(--radius-lg);padding:20px;transition:all 0.3s;cursor:pointer" onmouseenter="this.style.borderColor='var(--accent)'" onmouseleave="this.style.borderColor='var(--border)'">
+      <div style="font-size:36px;margin-bottom:10px">${c.icon}</div>
+      <div style="font-family:'Syne',sans-serif;font-weight:700;margin-bottom:6px">${c.title}</div>
+      <div style="font-size:12px;color:var(--text-muted);line-height:1.5">${c.desc}</div>
+    </div>`).join('');
+}
+
+function renderDailyChallenge() {
+  const c = challenges[new Date().getDay() % challenges.length];
+  document.getElementById('dailyChallenge').innerHTML = `<strong>${c.icon} ${c.title}</strong><br>${c.desc}`;
+}
+
+const moodMessages = {
+  '😤': "🎯 Channel that focus energy! This is your peak performance state. Get started on your hardest task NOW.",
+  '😊': "✨ Great mood = great learning! Tackle new concepts and challenging material while you're feeling positive.",
+  '😴': "☕ Feeling tired? Start with 10 jumping jacks, drink water, and try the Pomodoro technique to stay engaged.",
+  '😰': "💆 Stressed? Take 5 deep breaths first. Break your tasks into tiny pieces. One small step at a time.",
+  '🔥': "🚀 You're on FIRE! Push yourself to the limit today. This is when legends are made!"
+};
+
+function setMood(btn, emoji) {
+  document.querySelectorAll('.mood-btn').forEach(b=>b.style.borderColor='var(--border)');
+  btn.style.borderColor = 'var(--accent)';
+  const msgEl = document.getElementById('moodMessage');
+  msgEl.textContent = moodMessages[emoji];
+  msgEl.style.display = 'block';
+}
+</script>
+{% endblock %}

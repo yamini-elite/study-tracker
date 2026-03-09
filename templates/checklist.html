@@ -1,0 +1,176 @@
+{% extends "layout.html" %}
+{% block title %}Checklist — StudyTrack{% endblock %}
+{% block page_title %}Study Checklist{% endblock %}
+{% block content %}
+<div style="display:flex;gap:20px;flex-wrap:wrap;margin-bottom:20px;align-items:center;justify-content:space-between">
+  <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+    <input type="date" id="dateFilter" class="form-control" style="width:auto" onchange="loadTasks()">
+    <select id="filterStatus" class="form-control" style="width:auto" onchange="renderTasks()">
+      <option value="all">All Tasks</option>
+      <option value="pending">Pending</option>
+      <option value="completed">Completed</option>
+    </select>
+  </div>
+  <button class="btn btn-primary" onclick="openModal('taskModal')">+ Add Task</button>
+</div>
+
+<!-- Stats bar -->
+<div class="grid-3 mb-4">
+  <div class="stat-card"><div class="stat-label">Total</div><div class="stat-value" id="cTotal">0</div></div>
+  <div class="stat-card"><div class="stat-label">Completed</div><div class="stat-value text-success" id="cDone">0</div></div>
+  <div class="stat-card"><div class="stat-label">Pending</div><div class="stat-value text-accent" id="cPend">0</div></div>
+</div>
+<div class="card mb-4" style="padding:16px">
+  <div style="display:flex;justify-content:space-between;font-size:13px;color:var(--text-muted);margin-bottom:8px">
+    <span>Progress</span><span id="progLabel">0%</span>
+  </div>
+  <div class="progress-wrap"><div class="progress-bar" id="checkProg" style="width:0%"></div></div>
+</div>
+
+<div id="taskList"></div>
+
+<!-- Task Modal -->
+<div class="modal-overlay" id="taskModal">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title" id="taskModalTitle">➕ Add Task</span>
+      <button class="btn btn-icon btn-secondary" onclick="closeModal('taskModal')">✕</button>
+    </div>
+    <input type="hidden" id="editTaskId">
+    <div class="form-group">
+      <label class="form-label">Task Name *</label>
+      <input type="text" id="taskName" class="form-control" placeholder="e.g. Read Chapter 5">
+    </div>
+    <div class="grid-2">
+      <div class="form-group">
+        <label class="form-label">Subject</label>
+        <input type="text" id="taskSubject" class="form-control" placeholder="Math">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Priority</label>
+        <select id="taskPriority" class="form-control">
+          <option value="low">🟢 Low</option>
+          <option value="medium" selected>🟡 Medium</option>
+          <option value="high">🔴 High</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Date</label>
+      <input type="date" id="taskDate" class="form-control">
+    </div>
+    <div style="display:flex;gap:10px">
+      <button class="btn btn-primary w-full" onclick="saveTask()">Save Task</button>
+      <button class="btn btn-secondary" onclick="closeModal('taskModal')">Cancel</button>
+    </div>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+{{ super() }}
+<script>
+let tasks = [];
+
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('dateFilter').value = todayStr();
+  document.getElementById('taskDate').value = todayStr();
+  loadTasks();
+});
+
+async function loadTasks() {
+  const date = document.getElementById('dateFilter').value;
+  tasks = await api(`/api/tasks?date=${date}`) || [];
+  renderTasks();
+}
+
+function renderTasks() {
+  const filter = document.getElementById('filterStatus').value;
+  let shown = filter === 'all' ? tasks : tasks.filter(t=>t.status===filter);
+  const total = tasks.length, done = tasks.filter(t=>t.status==='completed').length;
+  document.getElementById('cTotal').textContent = total;
+  document.getElementById('cDone').textContent = done;
+  document.getElementById('cPend').textContent = total - done;
+  const pct = total ? Math.round(done/total*100) : 0;
+  document.getElementById('checkProg').style.width = pct+'%';
+  document.getElementById('progLabel').textContent = pct+'%';
+
+  const el = document.getElementById('taskList');
+  if (!shown.length) {
+    el.innerHTML = '<div class="empty-state"><span class="empty-icon">✅</span><p>No tasks here. Add one!</p></div>';
+    return;
+  }
+  const priOrder = {high:0,medium:1,low:2};
+  shown.sort((a,b)=>priOrder[a.priority]-priOrder[b.priority]);
+  el.innerHTML = shown.map(t=>`
+    <div class="task-item ${t.status==='completed'?'completed':''}" id="task-${t.task_id}">
+      <div class="task-checkbox ${t.status==='completed'?'checked':''}" onclick="toggleTask(${t.task_id},'${t.status}')"></div>
+      <div class="task-info">
+        <div class="task-name">${t.task_name}</div>
+        <div class="task-meta">
+          ${t.subject?`<span>${t.subject}</span> · `:''}<span class="${t.priority==='high'?'text-danger':t.priority==='medium'?'':'text-success'}">${t.priority}</span>
+        </div>
+      </div>
+      <div class="task-actions">
+        <button class="btn btn-sm btn-secondary btn-icon" onclick='editTask(${JSON.stringify(t)})' title="Edit">✏️</button>
+        <button class="btn btn-sm btn-danger btn-icon" onclick="deleteTask(${t.task_id})" title="Delete">🗑️</button>
+      </div>
+    </div>`).join('');
+}
+
+async function toggleTask(id, status) {
+  const newStatus = status === 'completed' ? 'pending' : 'completed';
+  const res = await api(`/api/tasks/${id}`,'PUT',{status:newStatus});
+  if (res) {
+    const idx = tasks.findIndex(t=>t.task_id===id);
+    if (idx>=0) tasks[idx] = res;
+    if (newStatus === 'completed') {
+      showToast('✅ Task completed!','success');
+      // Celebration effect
+      const el = document.getElementById(`task-${id}`);
+      if (el) { el.style.transform='scale(1.02)'; setTimeout(()=>el.style.transform='',300); }
+    }
+    renderTasks();
+  }
+}
+
+function editTask(t) {
+  document.getElementById('taskModalTitle').textContent = '✏️ Edit Task';
+  document.getElementById('editTaskId').value = t.task_id;
+  document.getElementById('taskName').value = t.task_name;
+  document.getElementById('taskSubject').value = t.subject||'';
+  document.getElementById('taskPriority').value = t.priority||'medium';
+  document.getElementById('taskDate').value = t.date;
+  openModal('taskModal');
+}
+
+async function saveTask() {
+  const id = document.getElementById('editTaskId').value;
+  const data = {
+    task_name: document.getElementById('taskName').value,
+    subject: document.getElementById('taskSubject').value,
+    priority: document.getElementById('taskPriority').value,
+    date: document.getElementById('taskDate').value
+  };
+  if (!data.task_name) { showToast('Task name required','error'); return; }
+  if (id) {
+    const res = await api(`/api/tasks/${id}`,'PUT',data);
+    if (res) { tasks = tasks.map(t=>t.task_id==id?res:t); showToast('Task updated!','success'); }
+  } else {
+    const res = await api('/api/tasks','POST',data);
+    if (res) { tasks.unshift(res); showToast('Task added!','success'); }
+  }
+  // Reset form
+  document.getElementById('editTaskId').value='';
+  document.getElementById('taskName').value='';
+  document.getElementById('taskModalTitle').textContent='➕ Add Task';
+  closeModal('taskModal');
+  renderTasks();
+}
+
+async function deleteTask(id) {
+  if (!confirm('Delete this task?')) return;
+  const res = await api(`/api/tasks/${id}`,'DELETE');
+  if (res?.success) { tasks=tasks.filter(t=>t.task_id!==id); showToast('Task deleted','warning'); renderTasks(); }
+}
+</script>
+{% endblock %}

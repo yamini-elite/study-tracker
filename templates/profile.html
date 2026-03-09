@@ -1,0 +1,129 @@
+{% extends "layout.html" %}
+{% block title %}Profile — StudyTrack{% endblock %}
+{% block page_title %}Profile{% endblock %}
+{% block content %}
+<div class="grid-2">
+  <!-- Profile Card -->
+  <div>
+    <div class="card mb-4" style="text-align:center;padding:32px">
+      <div style="width:80px;height:80px;border-radius:50%;background:var(--accent);display:flex;align-items:center;justify-content:center;font-family:'Syne',sans-serif;font-size:2rem;font-weight:800;color:white;margin:0 auto 16px;box-shadow:0 0 30px var(--accent-glow)" id="bigAvatar">?</div>
+      <div id="profileName" style="font-family:'Syne',sans-serif;font-size:1.4rem;font-weight:800;margin-bottom:4px">Loading...</div>
+      <div id="profileEmail" style="color:var(--text-muted);font-size:14px;margin-bottom:16px"></div>
+      <div style="display:flex;justify-content:center;gap:20px">
+        <div style="text-align:center"><div id="pStreak" style="font-family:'Syne',sans-serif;font-size:1.6rem;font-weight:800">0</div><div style="font-size:12px;color:var(--text-muted)">Streak</div></div>
+        <div style="text-align:center"><div id="pTotal" style="font-family:'Syne',sans-serif;font-size:1.6rem;font-weight:800">0</div><div style="font-size:12px;color:var(--text-muted)">Tasks</div></div>
+        <div style="text-align:center"><div id="pDone" style="font-family:'Syne',sans-serif;font-size:1.6rem;font-weight:800">0</div><div style="font-size:12px;color:var(--text-muted)">Done</div></div>
+      </div>
+    </div>
+
+    <!-- Theme Settings -->
+    <div class="card">
+      <div class="card-title mb-3">🎨 Theme Settings</div>
+      <div class="form-group">
+        <label class="form-label">Mode</label>
+        <div style="display:flex;gap:8px">
+          <button class="btn btn-secondary w-full" onclick="switchTheme('dark')">🌙 Dark</button>
+          <button class="btn btn-secondary w-full" onclick="switchTheme('light')">☀️ Light</button>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Color Accent</label>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="color-btn btn btn-sm" style="background:#7c3aed;color:white" onclick="switchColor('purple')">Purple</button>
+          <button class="color-btn btn btn-sm" style="background:#2563eb;color:white" onclick="switchColor('blue')">Blue</button>
+          <button class="color-btn btn btn-sm" style="background:#059669;color:white" onclick="switchColor('green')">Green</button>
+          <button class="color-btn btn btn-sm" style="background:#e11d48;color:white" onclick="switchColor('rose')">Rose</button>
+          <button class="color-btn btn btn-sm" style="background:#d97706;color:white" onclick="switchColor('amber')">Amber</button>
+          <button class="color-btn btn btn-sm" style="background:#0891b2;color:white" onclick="switchColor('cyan')">Cyan</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Edit Profile -->
+  <div class="card">
+    <div class="card-title mb-4">✏️ Edit Profile</div>
+    <div class="form-group">
+      <label class="form-label">Full Name</label>
+      <input type="text" id="editName" class="form-control">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Subjects</label>
+      <input type="text" id="editSubjects" class="form-control" placeholder="Math, Physics, Chemistry">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Daily Study Goal (hours)</label>
+      <select id="editGoal" class="form-control">
+        <option value="2">2 hours</option><option value="4">4 hours</option>
+        <option value="6">6 hours</option><option value="8">8 hours</option><option value="10">10 hours</option>
+      </select>
+    </div>
+    <button class="btn btn-primary w-full" onclick="saveProfile()">💾 Save Changes</button>
+
+    <div class="divider"></div>
+    <div class="card-title mb-3">🏅 Achievements</div>
+    <div id="badgeGrid" class="grid-3"></div>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+{{ super() }}
+<script>
+document.addEventListener('DOMContentLoaded', async () => {
+  const d = await api('/api/profile');
+  if (!d) return;
+  const u = d.user, s = d.streak, st = d.stats;
+  document.getElementById('bigAvatar').textContent = getInitials(u.name);
+  document.getElementById('profileName').textContent = u.name;
+  document.getElementById('profileEmail').textContent = u.email;
+  document.getElementById('pStreak').textContent = s.current_streak||0;
+  document.getElementById('pTotal').textContent = st.total_tasks||0;
+  document.getElementById('pDone').textContent = st.done_tasks||0;
+  document.getElementById('editName').value = u.name;
+  document.getElementById('editSubjects').value = u.subjects||'';
+  document.getElementById('editGoal').value = u.study_goal||4;
+  applyTheme(u.theme, u.color_theme);
+
+  // Badges
+  const cs = s.current_streak||0;
+  const badges = [
+    {icon:'🌱',name:'Planted',desc:'First login',earned:true},
+    {icon:'🥉',name:'3 Days',desc:'3 day streak',earned:cs>=3},
+    {icon:'🥈',name:'Week',desc:'7 day streak',earned:cs>=7},
+    {icon:'🥇',name:'Fortnight',desc:'14 day streak',earned:cs>=14},
+    {icon:'💎',name:'Month',desc:'30 day streak',earned:cs>=30},
+    {icon:'🏆',name:'Legend',desc:'60 day streak',earned:cs>=60}
+  ];
+  document.getElementById('badgeGrid').innerHTML = badges.map(b=>`
+    <div style="text-align:center;padding:12px;background:${b.earned?'var(--accent-glow)':'var(--bg-secondary)'};border:1px solid ${b.earned?'var(--accent)':'var(--border)'};border-radius:var(--radius);opacity:${b.earned?1:0.4};transition:all 0.3s" title="${b.desc}">
+      <div style="font-size:28px">${b.icon}</div>
+      <div style="font-size:11px;font-weight:600;margin-top:4px;color:${b.earned?'var(--accent-light)':'var(--text-muted)'}">${b.name}</div>
+    </div>`).join('');
+});
+
+async function saveProfile() {
+  const res = await api('/api/profile','PUT',{
+    name: document.getElementById('editName').value,
+    subjects: document.getElementById('editSubjects').value,
+    study_goal: parseInt(document.getElementById('editGoal').value),
+    theme: localStorage.getItem('theme')||'dark',
+    color_theme: localStorage.getItem('color')||'purple'
+  });
+  if(res?.success){showToast('Profile saved!','success');document.getElementById('bigAvatar').textContent=getInitials(document.getElementById('editName').value);}
+}
+
+function switchTheme(t) {
+  const c = localStorage.getItem('color')||'purple';
+  applyTheme(t,c);
+  api('/api/theme','POST',{theme:t,color_theme:c});
+  showToast(`Switched to ${t} mode`,'success');
+}
+
+function switchColor(c) {
+  const t = localStorage.getItem('theme')||'dark';
+  applyTheme(t,c);
+  api('/api/theme','POST',{theme:t,color_theme:c});
+  showToast(`Color changed to ${c}`,'success');
+}
+</script>
+{% endblock %}

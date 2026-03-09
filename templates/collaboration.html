@@ -1,0 +1,135 @@
+{% extends "layout.html" %}
+{% block title %}Collaboration — StudyTrack{% endblock %}
+{% block page_title %}Study Groups{% endblock %}
+{% block content %}
+<div class="grid-2" style="height:calc(100vh - 160px)">
+  <!-- Groups Panel -->
+  <div style="display:flex;flex-direction:column;gap:16px;overflow-y:auto">
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">👥 My Groups</div>
+        <button class="btn btn-sm btn-primary" onclick="openModal('groupModal')">+ Create</button>
+      </div>
+      <div id="myGroups"><div class="empty-state"><span class="empty-icon">👥</span><p>No groups yet</p></div></div>
+    </div>
+    <div class="card">
+      <div class="card-header"><div class="card-title">🌐 Discover Groups</div></div>
+      <div id="allGroups"><div class="empty-state"><span class="empty-icon">🔍</span><p>No groups available</p></div></div>
+    </div>
+  </div>
+
+  <!-- Chat Panel -->
+  <div class="card" style="display:flex;flex-direction:column;height:100%">
+    <div id="chatHeader" style="border-bottom:1px solid var(--border);padding-bottom:16px;margin-bottom:16px">
+      <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:1.1rem;color:var(--text-muted)">Select a group to start chatting</div>
+    </div>
+    <div id="msgList" style="flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:10px;margin-bottom:16px;padding-right:4px">
+      <div class="empty-state"><span class="empty-icon">💬</span><p>Messages will appear here</p></div>
+    </div>
+    <div id="chatInput" style="display:none;gap:10px">
+      <input type="text" id="msgInput" class="form-control" placeholder="Type a message..." onkeydown="if(event.key==='Enter')sendGroupMsg()">
+      <button class="btn btn-primary" onclick="sendGroupMsg()" style="flex-shrink:0">Send</button>
+    </div>
+  </div>
+</div>
+
+<!-- Create Group Modal -->
+<div class="modal-overlay" id="groupModal">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title">👥 Create Study Group</span>
+      <button class="btn btn-icon btn-secondary" onclick="closeModal('groupModal')">✕</button>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Group Name *</label>
+      <input type="text" id="grpName" class="form-control" placeholder="e.g. Physics Study Squad">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Description</label>
+      <input type="text" id="grpDesc" class="form-control" placeholder="What will you study together?">
+    </div>
+    <button class="btn btn-primary w-full" onclick="createGroup()">Create Group</button>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+{{ super() }}
+<script>
+let activeGroupId = null;
+let myGroupIds = new Set();
+
+document.addEventListener('DOMContentLoaded', loadGroups);
+
+async function loadGroups() {
+  const d = await api('/api/groups');
+  if (!d) return;
+  myGroupIds = new Set(d.my_groups.map(g=>g.group_id));
+
+  document.getElementById('myGroups').innerHTML = d.my_groups.length ?
+    d.my_groups.map(g=>groupCard(g, true)).join('') :
+    '<div class="empty-state"><span class="empty-icon">👥</span><p>No groups yet</p></div>';
+
+  document.getElementById('allGroups').innerHTML = d.all_groups.length ?
+    d.all_groups.map(g=>groupCard(g, false)).join('') :
+    '<div class="empty-state"><span class="empty-icon">🔍</span><p>No other groups available</p></div>';
+}
+
+function groupCard(g, isMember) {
+  return `<div style="display:flex;align-items:center;gap:12px;padding:12px;background:var(--bg-secondary);border:1px solid ${activeGroupId===g.group_id?'var(--accent)':'var(--border)'};border-radius:var(--radius);margin-bottom:6px;cursor:pointer" onclick="openGroup(${g.group_id},'${g.group_name}')">
+    <div style="width:40px;height:40px;border-radius:50%;background:var(--accent);display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:700;color:white;flex-shrink:0">${g.group_name[0].toUpperCase()}</div>
+    <div style="flex:1;min-width:0">
+      <div style="font-weight:600;font-size:14px">${g.group_name}</div>
+      <div style="font-size:12px;color:var(--text-muted)">${g.description||'No description'} · ${g.member_count} members</div>
+    </div>
+    ${!isMember ? `<button class="btn btn-sm btn-primary" onclick="event.stopPropagation();joinGroup(${g.group_id})">Join</button>` : '<span class="badge badge-success">Joined</span>'}
+  </div>`;
+}
+
+async function openGroup(id, name) {
+  activeGroupId = id;
+  document.getElementById('chatHeader').innerHTML = `
+    <div style="display:flex;align-items:center;gap:10px">
+      <div style="width:36px;height:36px;border-radius:50%;background:var(--accent);display:flex;align-items:center;justify-content:center;font-weight:700;color:white">${name[0]}</div>
+      <div><div style="font-weight:700">${name}</div><div style="font-size:12px;color:var(--text-muted)">Group Chat</div></div>
+    </div>`;
+  document.getElementById('chatInput').style.display = myGroupIds.has(id) ? 'flex' : 'none';
+  const msgs = await api(`/api/groups/${id}/messages`);
+  renderMessages(msgs||[]);
+  loadGroups();
+}
+
+function renderMessages(msgs) {
+  const el = document.getElementById('msgList');
+  if (!msgs.length) { el.innerHTML='<div class="empty-state"><span class="empty-icon">💬</span><p>No messages yet. Say hi!</p></div>'; return; }
+  el.innerHTML = msgs.map(m=>`
+    <div style="display:flex;align-items:flex-start;gap:8px">
+      <div class="avatar" style="width:30px;height:30px;font-size:12px">${m.sender_name[0].toUpperCase()}</div>
+      <div>
+        <div style="font-size:11px;color:var(--text-muted);margin-bottom:3px">${m.sender_name} · ${m.sent_at.slice(11,16)}</div>
+        <div style="background:var(--bg-hover);border:1px solid var(--border);border-radius:12px;border-top-left-radius:4px;padding:10px 14px;font-size:14px;max-width:400px">${m.message}</div>
+      </div>
+    </div>`).join('');
+  el.scrollTop = el.scrollHeight;
+}
+
+async function sendGroupMsg() {
+  if (!activeGroupId) return;
+  const msg = document.getElementById('msgInput').value.trim();
+  if (!msg) return;
+  document.getElementById('msgInput').value='';
+  await api(`/api/groups/${activeGroupId}/messages`,'POST',{message:msg});
+  const msgs = await api(`/api/groups/${activeGroupId}/messages`);
+  renderMessages(msgs||[]);
+}
+
+async function createGroup() {
+  const res = await api('/api/groups','POST',{group_name:document.getElementById('grpName').value,description:document.getElementById('grpDesc').value});
+  if(res?.success){showToast('Group created!','success');closeModal('groupModal');document.getElementById('grpName').value='';document.getElementById('grpDesc').value='';loadGroups();}
+}
+
+async function joinGroup(id) {
+  const res = await api(`/api/groups/${id}/join`,'POST');
+  if(res?.success){showToast('Joined group!','success');loadGroups();}
+}
+</script>
+{% endblock %}
